@@ -39,7 +39,7 @@ fontLoader.load(
     '/fonts/helvetiker_regular.typeface.json',
     (font) => {
         const textGeometry = new TextGeometry(
-            'Hello Three.js',
+            'Three.js',
             {
                 font: font,
                 size: 0.5,
@@ -72,9 +72,9 @@ fontLoader.load(
 
         for (let i = 0; i < 300; i++) {
             const donut = new THREE.Mesh(donutGeometry, material)
-            donut.position.x = (Math.random() - 0.5) * 10
-            donut.position.y = (Math.random() - 0.5) * 10
-            donut.position.z = (Math.random() - 0.5) * 10
+            donut.position.x = (Math.random() - 0.5) * 11
+            donut.position.y = (Math.random() - 0.5) * 11
+            donut.position.z = (Math.random() - 0.5) * 11
 
             donut.rotation.x = Math.random() * Math.PI
             donut.rotation.y = Math.random() * Math.PI
