@@ -1,9 +1,10 @@
-import './style.css'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import * as dat from 'lil-gui'
-import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js'
-import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js'
+
+THREE.ColorManagement.enabled = false
 
 /**
  * Base
@@ -17,75 +18,56 @@ const canvas = document.querySelector('canvas.webgl')
 // Scene
 const scene = new THREE.Scene()
 
-// /**
-//  * Axes Helper
-//  */
-// const axesHelper = new THREE.AxesHelper()
-// scene.add(axesHelper)
-
 /**
- * Textures
+ * Models
  */
-const textureLoader = new THREE.TextureLoader()
-const matcapTexture = textureLoader.load('/textures/matcaps/8.png')
+const dracoLoader = new DRACOLoader()
+dracoLoader.setDecoderPath('/draco/')
 
+const gltfLoader = new GLTFLoader()
+gltfLoader.setDRACOLoader(dracoLoader)
 
-/**
- * Fonts
- */
+let mixer = null
 
-const fontLoader = new FontLoader()
-fontLoader.load(
-    '/fonts/helvetiker_regular.typeface.json',
-    (font) => {
-        const textGeometry = new TextGeometry(
-            'Hello Three.js',
-            {
-                font: font,
-                size: 0.5,
-                height: 0.2,
-                curveSegments: 5,
-                bevelEnabled: true,
-                bevelThickness: 0.03,
-                bevelSize: 0.02,
-                bevelOffset: 0,
-                bevelSegments: 4
-            }
-        )
-        console.log('object :>> ', textGeometry.parameters);
-
-        textGeometry.computeBoundingBox()
-        // textGeometry.translate(
-        //     - (textGeometry.boundingBox.max.x - 0.02) * 0.5, // Subtract bevel size
-        //     - (textGeometry.boundingBox.max.y - 0.02) * 0.5, // Subtract bevel size
-        //     - (textGeometry.boundingBox.max.z - 0.03) * 0.5  // Subtract bevel thickness
-        // )
-        textGeometry.center()
-
-        const material = new THREE.MeshMatcapMaterial()
-        // textMaterial.wireframe = true
-        material.matcap = matcapTexture
-        const text = new THREE.Mesh(textGeometry, material)
-        scene.add(text)
-
-        const donutGeometry = new THREE.TorusGeometry(0.3, 0.2, 20, 45)
-
-        for (let i = 0; i < 300; i++) {
-            const donut = new THREE.Mesh(donutGeometry, material)
-            donut.position.x = (Math.random() - 0.5) * 10
-            donut.position.y = (Math.random() - 0.5) * 10
-            donut.position.z = (Math.random() - 0.5) * 10
-
-            donut.rotation.x = Math.random() * Math.PI
-            donut.rotation.y = Math.random() * Math.PI
-
-            const scale = Math.random();
-            donut.scale.set(scale, scale, scale)
-
-            scene.add(donut)
-        }
+gltfLoader.load(
+    '/models/hamburger.glb',
+    (gltf) =>
+    {
+        scene.add(gltf.scene)
     }
 )
+
+/**
+ * Floor
+ */
+const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(50, 50),
+    new THREE.MeshStandardMaterial({
+        color: '#444444',
+        metalness: 0,
+        roughness: 0.5
+    })
+)
+floor.receiveShadow = true
+floor.rotation.x = - Math.PI * 0.5
+scene.add(floor)
+
+/**
+ * Lights
+ */
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.8)
+scene.add(ambientLight)
+
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6)
+directionalLight.castShadow = true
+directionalLight.shadow.mapSize.set(1024, 1024)
+directionalLight.shadow.camera.far = 15
+directionalLight.shadow.camera.left = - 7
+directionalLight.shadow.camera.top = 7
+directionalLight.shadow.camera.right = 7
+directionalLight.shadow.camera.bottom = - 7
+directionalLight.position.set(5, 5, 5)
+scene.add(directionalLight)
 
 /**
  * Sizes
@@ -95,7 +77,8 @@ const sizes = {
     height: window.innerHeight
 }
 
-window.addEventListener('resize', () => {
+window.addEventListener('resize', () =>
+{
     // Update sizes
     sizes.width = window.innerWidth
     sizes.height = window.innerHeight
@@ -114,13 +97,12 @@ window.addEventListener('resize', () => {
  */
 // Base camera
 const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100)
-camera.position.x = 1
-camera.position.y = 1
-camera.position.z = 2
+camera.position.set(- 8, 4, 8)
 scene.add(camera)
 
 // Controls
 const controls = new OrbitControls(camera, canvas)
+controls.target.set(0, 1, 0)
 controls.enableDamping = true
 
 /**
@@ -129,6 +111,9 @@ controls.enableDamping = true
 const renderer = new THREE.WebGLRenderer({
     canvas: canvas
 })
+renderer.outputColorSpace = THREE.LinearSRGBColorSpace
+renderer.shadowMap.enabled = true
+renderer.shadowMap.type = THREE.PCFSoftShadowMap
 renderer.setSize(sizes.width, sizes.height)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 
@@ -136,9 +121,18 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
  * Animate
  */
 const clock = new THREE.Clock()
+let previousTime = 0
 
-const tick = () => {
+const tick = () =>
+{
     const elapsedTime = clock.getElapsedTime()
+    const deltaTime = elapsedTime - previousTime
+    previousTime = elapsedTime
+
+    if(mixer)
+    {
+        mixer.update(deltaTime)
+    }
 
     // Update controls
     controls.update()
